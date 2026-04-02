@@ -4,7 +4,7 @@
   "description": "基于 Minium 的微信小程序验收型 MCP Server 启动壳",
   "type": "module",
   "bin": {
-    "minium-mcp": "./launcher/minium-mcp.mjs"
+    "minium-mcp": "launcher/minium-mcp.mjs"
   },
   "engines": {
     "node": ">=18"
@@ -18,7 +18,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/diaz-zeng/miniprogram-minium-mcp"
+    "url": "git+https://github.com/diaz-zeng/miniprogram-minium-mcp.git"
+  },
+  "homepage": "https://github.com/diaz-zeng/miniprogram-minium-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/diaz-zeng/miniprogram-minium-mcp/issues"
   },
   "author": "diaz-zeng <diaz_zeng@outlook.com>",
   "license": "MIT"
