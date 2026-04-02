@@ -127,7 +127,13 @@ class ActionService:
 
     def assert_page_path(self, session_id: str, expected_path: str) -> dict:
         session = self._require_session(session_id)
-        actual = session.current_page_path or "pages/index/index"
+        page_state = self.runtime_adapter.get_current_page(
+            session.metadata,
+            session.current_page_path,
+        )
+        actual = page_state["current_page_path"]
+        session.current_page_path = actual
+        self.repository.update(session)
         if actual != expected_path:
             error = AcceptanceError(
                 error_code=ErrorCode.ASSERTION_FAILED,

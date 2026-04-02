@@ -1,6 +1,15 @@
-# minium-mcp
+# miniprogram-minium-mcp
 
-`minium-mcp` 是一个面向 AI Agent 的微信小程序验收型 MCP Server。  
+## Star History
+
+<a href="https://www.star-history.com/?repos=diaz-zeng%2Fminiprogram-minium-mcp&type=timeline&logscale=&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=diaz-zeng/miniprogram-minium-mcp&type=timeline&theme=dark&logscale&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=diaz-zeng/miniprogram-minium-mcp&type=timeline&logscale&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=diaz-zeng/miniprogram-minium-mcp&type=timeline&logscale&legend=top-left" />
+ </picture>
+</a>
+`miniprogram-minium-mcp` 是一个面向 AI Agent 的微信小程序验收型 MCP Server。  
 它基于 Minium，把“小程序打开、页面读取、元素查询、点击、输入、等待、断言、截图”这些能力整理成一组适合 MCP 调用的高层工具。
 
 当前版本的推荐使用方式很简单：
@@ -108,7 +117,7 @@ enabled = true
 
 - 下载或复用托管的 `uv`
 - 由 `uv` 托管 Python
-- 自动安装并启动 `minium-mcp` 的 Python 服务
+- 自动安装并启动 `minium-mcp` 命令对应的 Python 服务
 
 如果希望通过环境变量传配置，可以这样写：
 

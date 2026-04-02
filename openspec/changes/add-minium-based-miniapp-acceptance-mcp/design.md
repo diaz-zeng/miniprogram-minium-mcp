@@ -1,6 +1,6 @@
 ## Context
 
-`minium-mcp` 当前还是一个实验仓库，只有 OpenSpec 变更、README 与基础目录占位，尚未有实际的 MCP Server、Minium 适配层或测试代码。该变更的目标不是再造一个通用小程序自动化框架，而是把 Minium 已有的运行时驱动能力封装成一组更适合 AI Agent 调用的高层验收工具。
+`miniprogram-minium-mcp` 当前还是一个实验仓库，只有 OpenSpec 变更、README 与基础目录占位，尚未有实际的 MCP Server、Minium 适配层或测试代码。该变更的目标不是再造一个通用小程序自动化框架，而是把 Minium 已有的运行时驱动能力封装成一组更适合 AI Agent 调用的高层验收工具。
 
 这里有几个显式约束：
 

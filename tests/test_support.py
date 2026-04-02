@@ -614,3 +614,54 @@ def test_runtime_input_text_uses_descendant_input_when_locator_hits_container() 
 
         assert state["current_page_path"] == "pages/home/index"
         assert input_child.values == ["12"]
+
+
+def test_assert_page_path_reads_runtime_state_before_asserting() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        project_path = temp_path / "miniapp"
+        devtool_path = temp_path / "wechat-devtool"
+        artifacts_dir = temp_path / "artifacts"
+        project_path.mkdir()
+        devtool_path.write_text("placeholder", encoding="utf-8")
+
+        config = MiniumMcpConfig(
+            language="en",
+            runtime_mode="placeholder",
+            project_path=project_path,
+            wechat_devtool_path=devtool_path,
+            artifacts_dir=artifacts_dir,
+            log_level="INFO",
+            session_timeout_seconds=60,
+            test_port=9420,
+        )
+        repository = SessionRepository(timeout_seconds=60)
+        runtime = MiniumRuntimeAdapter(config=config)
+        action_service = ActionService(
+            repository=repository,
+            runtime_adapter=runtime,
+            artifact_manager=ArtifactManager(config.artifacts_dir),
+            language="en",
+        )
+
+        session = repository.create(metadata={})
+        session.current_page_path = "pages/stale/index"
+        repository.update(session)
+
+        with patch.object(
+            MiniumRuntimeAdapter,
+            "get_current_page",
+            return_value={
+                "current_page_path": "pages/home/index",
+                "page_summary": {"path": "pages/home/index", "source": "runtime"},
+            },
+        ) as mock_get_current_page:
+            result = action_service.assert_page_path(
+                session.session_id,
+                "pages/home/index",
+            )
+
+        mock_get_current_page.assert_called_once_with(session.metadata, "pages/stale/index")
+        assert result["ok"] is True
+        assert result["actual_value"] == "pages/home/index"
+        assert repository.get(session.session_id).current_page_path == "pages/home/index"
