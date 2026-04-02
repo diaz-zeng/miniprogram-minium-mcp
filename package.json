@@ -1,0 +1,25 @@
+{
+  "name": "@diaz9810/miniprogram-minium-mcp",
+  "version": "0.0.1-alpha.1",
+  "description": "基于 Minium 的微信小程序验收型 MCP Server 启动壳",
+  "type": "module",
+  "bin": {
+    "minium-mcp": "./launcher/minium-mcp.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "minium",
+    "miniapp",
+    "wechat",
+    "stdio"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/diaz-zeng/miniprogram-minium-mcp"
+  },
+  "author": "diaz-zeng <diaz_zeng@outlook.com>",
+  "license": "MIT"
+}
