@@ -1,6 +1,6 @@
 {
   "name": "@diaz9810/miniprogram-minium-mcp",
-  "version": "0.0.1-alpha.1",
+  "version": "0.0.1",
   "description": "基于 Minium 的微信小程序验收型 MCP Server 启动壳",
   "type": "module",
   "bin": {

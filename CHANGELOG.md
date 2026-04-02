@@ -13,6 +13,28 @@
   - `Packaging`：发包入口、运行方式、兼容性与分发相关变更
   - `Upgrade Notes`：升级或使用提示
 
+## [0.0.1] - 2026-04-02
+
+> 发布通道：`latest`
+
+### Added
+
+- 发布首个正式版 `0.0.1`，将 `miniprogram-minium-mcp` 从 alpha 预发布阶段推进到稳定安装入口。
+
+### Fixed
+
+- 吸收 `0.0.1-alpha.1` 中已经验证通过的核心修复，包括真实运行时输入回退、会话过期资源释放，以及页面路径断言基于实时运行态页面执行。
+
+### Changed
+
+- 默认安装通道切换为正式版，`npm install @diaz9810/miniprogram-minium-mcp` 或 `npx @diaz9810/miniprogram-minium-mcp` 将优先拿到 `0.0.1`。
+- `alpha` 通道继续保留给预发布版本，便于后续实验性迭代与灰度验证。
+
+### Upgrade Notes
+
+- 如果你此前使用的是 `0.0.1-alpha.1`，升级到 `0.0.1` 不需要额外的配置迁移。
+- `latest` 应指向 `0.0.1`，`alpha` 应继续指向 `0.0.1-alpha.1`。
+
 ## [0.0.1-alpha.1] - 2026-04-02
 
 > 发布通道：`alpha`
