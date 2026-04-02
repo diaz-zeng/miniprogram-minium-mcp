@@ -1,14 +1,5 @@
 # miniprogram-minium-mcp
 
-## Star History
-
-<a href="https://www.star-history.com/?repos=diaz-zeng%2Fminiprogram-minium-mcp&type=timeline&logscale=&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=diaz-zeng/miniprogram-minium-mcp&type=timeline&theme=dark&logscale&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=diaz-zeng/miniprogram-minium-mcp&type=timeline&logscale&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=diaz-zeng/miniprogram-minium-mcp&type=timeline&logscale&legend=top-left" />
- </picture>
-</a>
 `miniprogram-minium-mcp` 是一个面向 AI Agent 的微信小程序验收型 MCP Server。  
 它基于 Minium，把“小程序打开、页面读取、元素查询、点击、输入、等待、断言、截图”这些能力整理成一组适合 MCP 调用的高层工具。
 
@@ -18,6 +9,16 @@
 - 服务自动执行微信开发者工具 `auto`
 - 自动完成 Minium attach
 - 然后由 Agent 继续做验收和自动化测试
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=diaz-zeng%2Fminiprogram-minium-mcp&type=timeline&logscale=&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=diaz-zeng/miniprogram-minium-mcp&type=timeline&theme=dark&logscale&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=diaz-zeng/miniprogram-minium-mcp&type=timeline&logscale&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=diaz-zeng/miniprogram-minium-mcp&type=timeline&logscale&legend=top-left" />
+ </picture>
+</a>
 
 ## 适合谁用
 
