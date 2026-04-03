@@ -1,34 +1,24 @@
 # miniprogram-minium-mcp
 
 `miniprogram-minium-mcp` 是一个面向 AI Agent 的微信小程序验收型 MCP Server。  
-它基于 Minium，把“小程序打开、页面读取、元素查询、点击、输入、等待、断言、截图”这些能力整理成一组适合 MCP 调用的高层工具。
+它基于 Minium，把“小程序启动、页面读取、元素查询、点击、输入、等待、断言、截图、多触点交互”整理成一组适合 Agent 调用的高层工具。
 
-当前版本的推荐使用方式很简单：
+它的目标不是暴露底层 Minium 驱动对象，而是提供更稳定的“验收语义”：
 
-- 提供小程序项目路径
-- 服务自动执行微信开发者工具 `auto`
-- 自动完成 Minium attach
-- 然后由 Agent 继续做验收和自动化测试
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=diaz-zeng%2Fminiprogram-minium-mcp&type=timeline&logscale=&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=diaz-zeng/miniprogram-minium-mcp&type=timeline&theme=dark&logscale&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=diaz-zeng/miniprogram-minium-mcp&type=timeline&logscale&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=diaz-zeng/miniprogram-minium-mcp&type=timeline&logscale&legend=top-left" />
- </picture>
-</a>
+- 用 `session` 管理一次完整的小程序验收流程
+- 用结构化 `locator` 查找页面元素
+- 用高层动作完成点击、输入、等待、断言
+- 在失败时返回错误码、上下文摘要和截图证据
 
 ## 适合谁用
 
 - 想让 Codex、Claude Code、Trae 这类支持 MCP 的 Agent 直接操作微信小程序
-- 想把手工回归测试变成可编排的 AI 验收流程
-- 想保留截图、错误上下文和结构化断言结果，方便排查失败原因
+- 想把手工回归测试变成可编排、可复用的 Agent 验收流程
+- 想保留失败截图和结构化上下文，方便排查自动化问题
 
-## 当前能力
+## 能力概览
 
-当前已经提供这些 MCP tools：
+提供这些 MCP tools：
 
 - `miniapp_create_session`
 - `miniapp_close_session`
@@ -38,73 +28,65 @@
 - `miniapp_click`
 - `miniapp_input_text`
 - `miniapp_wait_for`
+- `miniapp_touch_start`
+- `miniapp_touch_move`
+- `miniapp_touch_end`
+- `miniapp_touch_tap`
 - `miniapp_assert_page_path`
 - `miniapp_assert_element_text`
 - `miniapp_assert_element_visible`
 
-这些工具的设计目标是“验收语义”，不是直接暴露底层 Minium 对象。  
-也就是说，调用方拿到的是结构化结果、错误码和证据路径，而不是底层驱动句柄。
+这些工具主要覆盖四类能力：
 
-当前版本在真实运行时里还额外补了两层关键兼容：
+1. 会话管理  
+   创建、读取、关闭会话，并维护当前页面和运行时上下文。
 
-- `click`：当文本定位命中的节点本身不是最终可交互目标时，会继续尝试其可疑祖先节点，减少“文案点到了但业务没触发”的情况
-- `input`：当定位器命中的不是最终 `input/textarea`，而是它外层的容器节点时，会继续在子树里寻找真实可输入节点
-- `input`：对文本定位命中的场景，会优先尝试目标元素本身，再尝试可疑祖先容器中的真实输入节点
-- 这两层兼容的目标，是提升弹窗、表单、组合组件和自定义样式输入框场景下的真实业务成功率
+2. 页面交互  
+   查询元素、点击、输入、等待条件成立。
 
-## 已验证能力
+3. 验收断言  
+   断言页面路径、元素文本和元素可见性。
 
-在真实小程序项目上，当前已经验证通过的主链路包括：
+4. 调试取证  
+   截图、结构化错误详情、失败时的上下文保留。
 
-- 根据 `project_path` 自动拉起微信开发者工具并连接运行态
-- 获取当前页面路径
-- 截图
-- 查询页面文本和输入框
-- 点击首页按钮打开弹窗
-- 当文本节点本身不可直接点击时，自动回退到可疑祖先节点继续点击
-- 向真实 `input` 节点输入内容
-- 当定位到的是输入容器时，自动回退到内部真实 `input/textarea` 节点继续输入
-- 当文本定位命中的不是最终输入节点时，继续在目标节点或祖先容器里寻找真实输入框
-- 点击保存按钮并触发真实业务逻辑
-- 通过页面数据变化验证业务动作成功
+## 多触点能力
 
-下面这些验收场景也已经通过实际回归验证：
+包含一组实验性的多触点基础原语：
 
-- 启动与首页冒烟：
-  基于 `project_path` 创建会话、读取当前页面、截图，并确认首页入口元素存在
-- 首页点击到弹窗：
-  从首页点击业务入口后，能够稳定等待到对应录入弹窗出现
-- 输入回归验证：
-  当定位命中真实输入框、输入容器或与输入框关联的文本节点时，仍能把数值写入最终 `input`
-- 业务闭环验证：
-  打开业务录入弹窗，输入数值，点击“保存”后，首页对应统计能够按预期变化
-- 失败取证验证：
-  在断言失败、动作失败或等待超时时，会返回结构化错误并附带证据产物
-- 无效会话验证：
-  会话关闭后再次调用会返回结构化 `SESSION_ERROR`
+- `miniapp_touch_start`：按下并保持一个触点
+- `miniapp_touch_move`：移动一个已按下的触点
+- `miniapp_touch_end`：释放一个已按下的触点
+- `miniapp_touch_tap`：用指定触点执行一次短按点击
 
-## 运行前提
+这组能力适合表达“两指以内”的复合交互，例如：
 
-使用前请先确认本机具备以下条件：
+- 第一指按住拖动
+- 第一指未松开时第二指点击
+- 一段连续手势由多次 MCP 调用拼成
 
-- 已安装微信开发者工具
-- 小程序项目目录存在 `project.config.json`
-- 目标 MCP 客户端支持本地 `stdio` 类型的 MCP Server
+服务端会在会话里维护：
 
-对最终用户来说，当前推荐方式是直接通过 `npx` 启动。  
-在这种模式下：
+- `active_pointers`
+- `latest_gesture_event`
 
-- Python 由 launcher 托管
-- `minium` 由 launcher 自动准备
-- 用户不需要手动创建虚拟环境或手动安装 Python 依赖
+这样 Agent 不需要自己拼底层 `touches` / `changedTouches` 事件数组，只需要表达“哪个触点做了什么”。
 
-当前版本默认面向**本地单用户环境**，不需要远程部署。
+## 真实运行时兼容策略
 
-## 安装与使用
+为了提升真实小程序场景下的成功率，运行时补了几层常见兼容：
 
-### 1. 最推荐：直接通过 `npx` 启动
+- `click`：当文本定位命中的节点不是最终可交互目标时，会继续尝试可疑祖先节点
+- `input`：当定位命中容器节点或文本节点时，会继续寻找内部真实 `input` / `textarea`
+- `gesture`：对部分文本命中场景，会尽量选择更合理的交互节点，避免把手势落到只负责展示的内部元素
 
-如果发布为 npm 包，推荐在 MCP 客户端里这样配置：
+这些兼容的目标，是提高自定义组件、组合按钮、弹窗表单和复杂包裹层场景下的真实业务成功率。
+
+## 安装与启动
+
+### 推荐方式：通过 `npx` 启动
+
+如果你是作为 MCP Server 使用，推荐在 MCP 客户端里这样配置：
 
 ```toml
 [mcp_servers.minium_mcp]
@@ -114,18 +96,12 @@ args = ["-y", "@diaz9810/miniprogram-minium-mcp"]
 enabled = true
 ```
 
-这条路径会由 Node 启动壳负责：
-
-- 下载或复用托管的 `uv`
-- 由 `uv` 托管 Python
-- 自动安装并启动 `minium-mcp` 命令对应的 Python 服务
-
 如果希望通过环境变量传配置，可以这样写：
 
 ```toml
 [mcp_servers.minium_mcp.env]
 MINIUM_MCP_PROJECT_PATH = "/path/to/miniapp"
-MINIUM_MCP_WECHAT_DEVTOOL_PATH = "/Applications/wechatwebdevtools.app/Contents/MacOS/cli"
+MINIUM_MCP_WECHAT_DEVTOOL_PATH = "/path/to/wechat-devtool-cli"
 MINIUM_MCP_ARTIFACTS_DIR = "/path/to/artifacts"
 MINIUM_MCP_SESSION_TIMEOUT_SECONDS = "1800"
 MINIUM_MCP_RUNTIME_MODE = "real"
@@ -133,9 +109,9 @@ MINIUM_MCP_TEST_PORT = "9420"
 MINIUM_MCP_LANGUAGE = "zh-CN"
 ```
 
-### 2. 开发者模式：从源码本地运行
+### 开发者方式：从源码本地运行
 
-如果你是在本仓库里开发，仍然可以继续使用 Python 方式本地启动：
+如果你是在本仓库里开发：
 
 ```bash
 python3 -m venv .venv
@@ -149,27 +125,36 @@ python3 -m venv .venv
 .venv/bin/minium-mcp --config ./minium-mcp.toml --log-level DEBUG
 ```
 
+## 运行前提
+
+使用前请先确认：
+
+- 已安装微信开发者工具
+- 目标小程序目录存在 `project.config.json`
+- 目标 MCP 客户端支持本地 `stdio` 类型 MCP Server
+
+项目本身的 Python 要求见 [pyproject.toml](./pyproject.toml)，要求是 `>=3.11`。  
+Node.js 版本要求见 [package.json](./package.json)，要求是 `>=18`。
+
 ## 最推荐的调用方式
 
 最推荐的主链路是：
 
 1. 调用 `miniapp_create_session`
 2. 传入 `project_path`
-3. 服务自动执行 `cli auto --project ... --auto-port ...`
+3. 服务自动执行微信开发者工具 `auto`
 4. 服务自动 attach 到小程序运行态
-5. 再继续执行查询、点击、输入、等待和断言
+5. 再继续执行查询、点击、输入、等待、断言和截图
 
-也就是说，正常情况下你不需要：
+正常情况下你不需要：
 
 - 手动先打开微信开发者工具
 - 自己记自动化端口
 - 在多个目标之间手动选择 attach 对象
 
-当前版本已经把对外接口收敛为“按项目路径驱动”。
+## 典型验收流程
 
-## 示例流程
-
-下面是一条典型的验收流程：
+下面是一条常见的调用顺序：
 
 1. `miniapp_create_session(project_path="...")`
 2. `miniapp_get_current_page(session_id="...")`
@@ -181,9 +166,66 @@ python3 -m venv .venv
 8. `miniapp_capture_screenshot(...)`
 9. `miniapp_close_session(...)`
 
+如果你是做多触点场景，常见顺序会变成：
+
+1. `miniapp_touch_start`
+2. `miniapp_touch_move`
+3. `miniapp_touch_tap`
+4. `miniapp_touch_end`
+5. 再补充查询或断言验证业务结果
+
+## 定位器说明
+
+支持的 `locator.type`：
+
+- `id`
+- `css`
+- `text`
+
+推荐优先级：
+
+1. `id`
+2. `css`
+3. `text`
+
+原因很简单：
+
+- `id` 最稳定，最适合验收自动化
+- `css` 适合结构清晰的页面
+- `text` 最方便，但在复杂自定义组件下，真实命中节点未必就是最终交互节点
+
+## 多触点验证脚本
+
+仓库内提供了一个真实运行时最小验证脚本：
+
+- [validate_multitouch_real.py](./scripts/validate_multitouch_real.py)
+
+通用示例：
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/validate_multitouch_real.py \
+  --project-path /path/to/miniapp \
+  --devtool-path /path/to/wechat-devtool-cli \
+  --start-locator-type id \
+  --start-locator-value drag-anchor \
+  --tap-locator-type id \
+  --tap-locator-value confirm-button \
+  --move-x 320 \
+  --move-y 420
+```
+
+这条脚本会按顺序执行：
+
+1. 第一指 `touch_start`
+2. 第一指 `touch_move`
+3. 第二指 `touch_tap`
+4. 第一指 `touch_end`
+
+如果你的业务场景需要预置 storage、自动跳页或追加业务断言，可以在脚本参数基础上扩展预设或准备逻辑。
+
 ## 配置项说明
 
-当前支持的主要配置项如下：
+主要配置项如下：
 
 - `MINIUM_MCP_PROJECT_PATH`
   默认小程序项目路径
@@ -196,28 +238,43 @@ python3 -m venv .venv
 - `MINIUM_MCP_RUNTIME_MODE`
   运行模式，支持 `real`、`auto`、`placeholder`
 - `MINIUM_MCP_TEST_PORT`
-  Minium 连接微信开发者工具使用的自动化端口
+  Minium 使用的自动化端口
 - `MINIUM_MCP_LANGUAGE`
   输出语言，支持 `zh-CN` 或 `en`
 
-语言规则如下：
-
-- 中文环境输出中文
-- 非中文环境输出英文
-- 也可以用 `MINIUM_MCP_LANGUAGE` 显式覆盖
-
-运行模式说明：
+### 运行模式
 
 - `real`
   强制走真实 Minium 运行时
 - `auto`
-  默认推荐模式，按真实环境路径执行
+  推荐模式，按真实环境优先执行
 - `placeholder`
   仅用于本地开发和协议调试，不连接真实小程序
 
-## 错误与产物
+### 输出语言
 
-当前服务会返回结构化错误，并尽量附带排查信息。  
+- 中文环境默认输出中文
+- 非中文环境默认输出英文
+- 也可以用 `MINIUM_MCP_LANGUAGE` 显式覆盖
+
+## 返回结果与错误模型
+
+服务优先返回结构化结果，而不是只给一段文本。
+
+成功返回通常会包含：
+
+- `ok`
+- `session_id`
+- `current_page_path`
+- 与当前动作对应的数据字段
+
+失败返回通常会包含：
+
+- `error_code`
+- `message`
+- `details`
+- `artifacts`
+
 常见错误类型包括：
 
 - `ENVIRONMENT_ERROR`
@@ -226,53 +283,63 @@ python3 -m venv .venv
 - `ASSERTION_FAILED`
 - `INTERNAL_ERROR`
 
+## 截图与调试产物
+
 截图和调试产物默认落在：
 
-- `artifacts/` 目录
+- `artifacts/`
 
-动作失败、等待超时或断言失败时，服务会尽量自动补一张截图，方便继续排查。
+这些产物主要用于：
 
-## 当前限制
+- 动作失败排查
+- 断言失败取证
+- 等待超时后的页面状态确认
+- 多触点场景下的业务结果留档
 
-当前版本有这些边界和限制：
+## 能力边界
 
-- 不暴露底层 Minium 对象
+有这些明确边界：
+
+- 这是验收型 MCP，不暴露底层 Minium 对象
 - 不支持任意脚本执行
-- 不把 MCP 设计成远程多租户服务
-- 当前重点是验收与自动化测试，不是通用调试代理
-- 当前真实联调主要在 macOS 上完成，Windows 兼容性还需要继续验证
+- 多触点能力收敛在“两指以内”
+- 不提供通用手势 DSL 或原始事件注入接口
+- 文本定位在复杂自定义组件下仍建议结合真实业务页面验证
 
 ## 常见问题
 
 ### 1. 必须手动打开微信开发者工具吗？
 
 通常不需要。  
-当前推荐方式是直接提供 `project_path`，服务会自己执行 `auto + attach`。
+推荐做法是直接传 `project_path`，服务会自动走 `auto + attach`。
 
-### 1.1 必须手动安装 Python 和 `minium` 吗？
+### 2. 为什么点击成功返回了，但页面没有变化？
 
-如果你走的是 `npx` 启动方式，通常不需要。  
-当前 launcher 的目标就是把 Python 和 `minium` 都隐藏在启动过程里。
+常见原因有三种：
 
-如果你是从源码运行，才需要自己准备 Python 环境。
+- 命中了展示节点，而不是最终交互节点
+- 组件本身对自动化点击兼容性一般
+- 页面还没进入可交互状态
 
-### 2. 为什么明明能看到开发者工具里的“服务端口”，Minium 还是连不上？
+建议优先：
 
-因为微信开发者工具的“服务端口”和 Minium 使用的“自动化端口”不是一回事。  
-当前服务内部会优先准备 Minium 需要的自动化端口，而不是直接拿 IDE 服务端口去连接。
+1. 用 `id` 代替 `text`
+2. 增加 `wait_for`
+3. 结合截图和 `details` 排查
 
-### 3. 为什么有时点击成功返回了，但页面没有变化？
+### 3. 为什么输入没有真正写进表单？
 
-有些 Taro/自定义组件对自动化点击不够友好。  
-当前运行时已经补了“文本节点向上寻找可交互祖先再点击”的兼容策略，但不同项目里仍然可能遇到新的点击兼容问题。
+复杂自定义表单里，定位结果可能先命中容器节点。  
+运行时已经补了输入回退逻辑，但如果页面结构特别复杂，仍建议给真实输入框补更稳定的 `id`。
 
-### 4. 如果失败了，应该先看哪里？
+### 4. 多触点场景怎么判断是否真的成功？
 
-优先看这三处：
+不要只看手势动作返回成功。  
+更推荐在手势之后继续补一条业务断言，例如：
 
-- 返回里的 `error_code`
-- 返回里的 `details`
-- `artifacts/` 目录下的截图
+- 当前录入区域出现有效分值
+- 某个标记数量增加
+- 某个状态文本发生变化
 
 ## 开发说明
 
@@ -281,7 +348,8 @@ python3 -m venv .venv
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
 - [CHANGELOG.md](./CHANGELOG.md)
 
-如果你关心这条能力的设计来源和变更过程，可以看：
+如果你关心这次多触点能力的设计与实现过程，可以看：
 
-- [openspec/changes/add-minium-based-miniapp-acceptance-mcp/proposal.md](./openspec/changes/add-minium-based-miniapp-acceptance-mcp/proposal.md)
-- [openspec/changes/add-minium-based-miniapp-acceptance-mcp/design.md](./openspec/changes/add-minium-based-miniapp-acceptance-mcp/design.md)
+- [proposal.md](./openspec/changes/add-miniapp-multitouch-gestures/proposal.md)
+- [design.md](./openspec/changes/add-miniapp-multitouch-gestures/design.md)
+- [tasks.md](./openspec/changes/add-miniapp-multitouch-gestures/tasks.md)

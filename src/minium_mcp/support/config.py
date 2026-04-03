@@ -6,9 +6,9 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
-import tomllib
 from typing import Any
 
+import tomllib
 from minium_mcp.support.i18n import detect_language, translate
 
 

@@ -8,7 +8,7 @@ from pathlib import Path
 from minium_mcp.adapters.minium.runtime import MiniumRuntimeAdapter
 from minium_mcp.support.artifacts import ArtifactManager
 
-from .action_models import Locator, WaitCondition
+from .action_models import GestureTarget, Locator, WaitCondition
 from .errors import AcceptanceError, ErrorCode
 from .responses import success_response
 from .session_repository import SessionRepository
@@ -123,6 +123,144 @@ class ActionService:
                 "condition": condition.model_dump(),
                 "current_page_path": session.current_page_path,
             },
+        )
+
+    def touch_start(
+        self,
+        session_id: str,
+        pointer_id: int,
+        target: GestureTarget,
+    ) -> dict:
+        session = self._require_session(session_id)
+        try:
+            gesture_state = self.runtime_adapter.touch_start(
+                session.metadata,
+                session.current_page_path,
+                pointer_id,
+                target,
+                session.active_pointers,
+            )
+        except AcceptanceError as error:
+            raise self._attach_evidence(
+                session,
+                error,
+                extra_details={
+                    "pointer_id": pointer_id,
+                    "target": target.model_dump(),
+                    "active_pointers": session.active_pointer_summaries(),
+                },
+            )
+
+        self._apply_gesture_state(session, gesture_state)
+        return success_response(
+            self.language,
+            "action.touch_start.success",
+            data=self._gesture_response_payload(session_id, gesture_state),
+        )
+
+    def touch_move(
+        self,
+        session_id: str,
+        pointer_id: int,
+        target: GestureTarget,
+        duration_ms: int = 0,
+        steps: int = 1,
+    ) -> dict:
+        session = self._require_session(session_id)
+        try:
+            gesture_state = self.runtime_adapter.touch_move(
+                session.metadata,
+                session.current_page_path,
+                pointer_id,
+                target,
+                session.active_pointers,
+                duration_ms=duration_ms,
+                steps=steps,
+            )
+        except AcceptanceError as error:
+            raise self._attach_evidence(
+                session,
+                error,
+                extra_details={
+                    "pointer_id": pointer_id,
+                    "target": target.model_dump(),
+                    "duration_ms": duration_ms,
+                    "steps": steps,
+                    "active_pointers": session.active_pointer_summaries(),
+                },
+            )
+
+        self._apply_gesture_state(session, gesture_state)
+        payload = self._gesture_response_payload(session_id, gesture_state)
+        payload["duration_ms"] = duration_ms
+        payload["steps"] = steps
+        return success_response(
+            self.language,
+            "action.touch_move.success",
+            data=payload,
+        )
+
+    def touch_end(
+        self,
+        session_id: str,
+        pointer_id: int,
+    ) -> dict:
+        session = self._require_session(session_id)
+        try:
+            gesture_state = self.runtime_adapter.touch_end(
+                session.metadata,
+                session.current_page_path,
+                pointer_id,
+                session.active_pointers,
+            )
+        except AcceptanceError as error:
+            raise self._attach_evidence(
+                session,
+                error,
+                extra_details={
+                    "pointer_id": pointer_id,
+                    "active_pointers": session.active_pointer_summaries(),
+                },
+            )
+
+        self._apply_gesture_state(session, gesture_state)
+        return success_response(
+            self.language,
+            "action.touch_end.success",
+            data=self._gesture_response_payload(session_id, gesture_state),
+        )
+
+    def touch_tap(
+        self,
+        session_id: str,
+        pointer_id: int,
+        target: GestureTarget,
+    ) -> dict:
+        session = self._require_session(session_id)
+        try:
+            gesture_state = self.runtime_adapter.touch_tap(
+                session.metadata,
+                session.current_page_path,
+                pointer_id,
+                target,
+                session.active_pointers,
+            )
+        except AcceptanceError as error:
+            raise self._attach_evidence(
+                session,
+                error,
+                extra_details={
+                    "pointer_id": pointer_id,
+                    "target": target.model_dump(),
+                    "active_pointers": session.active_pointer_summaries(),
+                },
+            )
+
+        self._apply_gesture_state(session, gesture_state)
+        return success_response(
+            self.language,
+            "action.touch_tap.success",
+            data=self._gesture_response_payload(session_id, gesture_state),
         )
 
     def assert_page_path(self, session_id: str, expected_path: str) -> dict:
@@ -290,3 +428,21 @@ class ActionService:
             message_key=error.message_key,
             message_params=error.message_params,
         )
+
+    def _apply_gesture_state(self, session, gesture_state: dict) -> None:
+        session.current_page_path = gesture_state["current_page_path"]
+        session.active_pointers = gesture_state["active_pointers"]
+        session.latest_gesture_event = gesture_state["latest_gesture_event"]
+        self.repository.update(session)
+
+    @staticmethod
+    def _gesture_response_payload(session_id: str, gesture_state: dict) -> dict[str, object]:
+        return {
+            "session_id": session_id,
+            "pointer_id": gesture_state["pointer_id"],
+            "event_type": gesture_state["event_type"],
+            "resolved_target": gesture_state["resolved_target"],
+            "active_pointers": gesture_state["active_pointer_summaries"],
+            "current_page_path": gesture_state["current_page_path"],
+            "latest_gesture_event": gesture_state["latest_gesture_event"],
+        }

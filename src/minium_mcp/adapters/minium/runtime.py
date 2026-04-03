@@ -9,11 +9,13 @@ import subprocess
 import time
 from typing import Any, Literal
 
-from minium_mcp.domain.action_models import Locator, WaitCondition
+from minium_mcp.domain.action_models import GestureTarget, Locator, WaitCondition
 from minium_mcp.domain.errors import AcceptanceError, ErrorCode
+from minium_mcp.domain.session_models import ActivePointer, PointerPosition
 from minium_mcp.support.config import MiniumMcpConfig
 
 SessionMode = Literal["launch", "attach"]
+_MAX_ACTIVE_POINTERS = 2
 
 _PLACEHOLDER_PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9o9l9x8AAAAASUVORK5CYII="
@@ -324,6 +326,684 @@ class MiniumRuntimeAdapter:
                 "expected_value": condition.expected_value,
                 "timeout_ms": condition.timeout_ms,
             },
+        )
+
+    def touch_start(
+        self,
+        session_metadata: dict[str, Any],
+        current_page_path: str | None,
+        pointer_id: int,
+        target: GestureTarget,
+        active_pointers: dict[int, ActivePointer],
+    ) -> dict[str, Any]:
+        """按下并保持一个触点。"""
+        if pointer_id in active_pointers:
+            raise AcceptanceError(
+                error_code=ErrorCode.ACTION_ERROR,
+                message="pointer already active",
+                message_key="error.pointer_already_active",
+                details={"pointer_id": pointer_id},
+            )
+        if len(active_pointers) >= _MAX_ACTIVE_POINTERS:
+            raise AcceptanceError(
+                error_code=ErrorCode.ACTION_ERROR,
+                message="pointer limit exceeded",
+                message_key="error.pointer_limit_exceeded",
+                details={
+                    "pointer_id": pointer_id,
+                    "active_pointer_ids": sorted(active_pointers.keys()),
+                    "limit": _MAX_ACTIVE_POINTERS,
+                },
+            )
+
+        if session_metadata.get("runtime_driver") is not None:
+            return self._real_touch_start(
+                session_metadata=session_metadata,
+                current_page_path=current_page_path,
+                pointer_id=pointer_id,
+                target=target,
+                active_pointers=active_pointers,
+            )
+        return self._placeholder_touch_start(
+            current_page_path=current_page_path,
+            pointer_id=pointer_id,
+            target=target,
+            active_pointers=active_pointers,
+        )
+
+    def touch_move(
+        self,
+        session_metadata: dict[str, Any],
+        current_page_path: str | None,
+        pointer_id: int,
+        target: GestureTarget,
+        active_pointers: dict[int, ActivePointer],
+        duration_ms: int = 0,
+        steps: int = 1,
+    ) -> dict[str, Any]:
+        """移动一个已按下的触点。"""
+        if pointer_id not in active_pointers:
+            raise AcceptanceError(
+                error_code=ErrorCode.ACTION_ERROR,
+                message="pointer is not active",
+                message_key="error.pointer_not_active",
+                details={"pointer_id": pointer_id},
+            )
+
+        if session_metadata.get("runtime_driver") is not None:
+            return self._real_touch_move(
+                session_metadata=session_metadata,
+                current_page_path=current_page_path,
+                pointer_id=pointer_id,
+                target=target,
+                active_pointers=active_pointers,
+                duration_ms=duration_ms,
+                steps=steps,
+            )
+        return self._placeholder_touch_move(
+            current_page_path=current_page_path,
+            pointer_id=pointer_id,
+            target=target,
+            active_pointers=active_pointers,
+            duration_ms=duration_ms,
+            steps=steps,
+        )
+
+    def touch_end(
+        self,
+        session_metadata: dict[str, Any],
+        current_page_path: str | None,
+        pointer_id: int,
+        active_pointers: dict[int, ActivePointer],
+    ) -> dict[str, Any]:
+        """释放一个已按下的触点。"""
+        if pointer_id not in active_pointers:
+            raise AcceptanceError(
+                error_code=ErrorCode.ACTION_ERROR,
+                message="pointer is not active",
+                message_key="error.pointer_not_active",
+                details={"pointer_id": pointer_id},
+            )
+
+        if session_metadata.get("runtime_driver") is not None:
+            return self._real_touch_end(
+                session_metadata=session_metadata,
+                current_page_path=current_page_path,
+                pointer_id=pointer_id,
+                active_pointers=active_pointers,
+            )
+        return self._placeholder_touch_end(
+            current_page_path=current_page_path,
+            pointer_id=pointer_id,
+            active_pointers=active_pointers,
+        )
+
+    def touch_tap(
+        self,
+        session_metadata: dict[str, Any],
+        current_page_path: str | None,
+        pointer_id: int,
+        target: GestureTarget,
+        active_pointers: dict[int, ActivePointer],
+    ) -> dict[str, Any]:
+        """执行一个短按点击，不保留触点。"""
+        if pointer_id in active_pointers:
+            raise AcceptanceError(
+                error_code=ErrorCode.ACTION_ERROR,
+                message="pointer already active",
+                message_key="error.pointer_already_active",
+                details={"pointer_id": pointer_id},
+            )
+        if len(active_pointers) >= _MAX_ACTIVE_POINTERS:
+            raise AcceptanceError(
+                error_code=ErrorCode.ACTION_ERROR,
+                message="pointer limit exceeded",
+                message_key="error.pointer_limit_exceeded",
+                details={
+                    "pointer_id": pointer_id,
+                    "active_pointer_ids": sorted(active_pointers.keys()),
+                    "limit": _MAX_ACTIVE_POINTERS,
+                },
+            )
+
+        if session_metadata.get("runtime_driver") is not None:
+            return self._real_touch_tap(
+                session_metadata=session_metadata,
+                current_page_path=current_page_path,
+                pointer_id=pointer_id,
+                target=target,
+                active_pointers=active_pointers,
+            )
+        return self._placeholder_touch_tap(
+            current_page_path=current_page_path,
+            pointer_id=pointer_id,
+            target=target,
+            active_pointers=active_pointers,
+        )
+
+    def _real_touch_start(
+        self,
+        session_metadata: dict[str, Any],
+        current_page_path: str | None,
+        pointer_id: int,
+        target: GestureTarget,
+        active_pointers: dict[int, ActivePointer],
+    ) -> dict[str, Any]:
+        page, page_path = self._get_real_page_and_path(session_metadata, current_page_path)
+        next_active_pointers = self._clone_active_pointers(active_pointers)
+        dispatch_target, resolved_target, position = self._resolve_real_gesture_target(
+            page=page,
+            target=target,
+            active_pointers=next_active_pointers,
+            pointer_id=pointer_id,
+        )
+        changed_touch = self._position_to_touch(position, pointer_id)
+        touches = self._build_touches_payload(next_active_pointers, changed_touch=changed_touch)
+        self._dispatch_real_touch_event(
+            dispatch_target,
+            "touchstart",
+            touches=touches,
+            changed_touches=[changed_touch],
+        )
+        next_active_pointers[pointer_id] = ActivePointer(
+            pointer_id=pointer_id,
+            current_position=position,
+            origin_target_summary=resolved_target,
+            runtime_target=dispatch_target,
+        )
+        return self._gesture_state(
+            current_page_path=page_path,
+            event_type="touch_start",
+            pointer_id=pointer_id,
+            resolved_target=resolved_target,
+            active_pointers=next_active_pointers,
+        )
+
+    def _real_touch_move(
+        self,
+        session_metadata: dict[str, Any],
+        current_page_path: str | None,
+        pointer_id: int,
+        target: GestureTarget,
+        active_pointers: dict[int, ActivePointer],
+        duration_ms: int,
+        steps: int,
+    ) -> dict[str, Any]:
+        page, page_path = self._get_real_page_and_path(session_metadata, current_page_path)
+        next_active_pointers = self._clone_active_pointers(active_pointers)
+        dispatch_target, resolved_target, destination = self._resolve_real_gesture_target(
+            page=page,
+            target=target,
+            active_pointers=next_active_pointers,
+            pointer_id=pointer_id,
+        )
+        pointer = next_active_pointers[pointer_id]
+        route = self._interpolate_positions(pointer.current_position, destination, steps=max(steps, 1))
+        sleep_seconds = max(duration_ms, 0) / 1000 / max(len(route), 1) if duration_ms > 0 else 0
+        for position in route:
+            changed_touch = self._position_to_touch(position, pointer_id)
+            pointer.current_position = position
+            if target.locator is not None:
+                pointer.runtime_target = dispatch_target
+            touches = self._build_touches_payload(next_active_pointers)
+            self._dispatch_real_touch_event(
+                pointer.runtime_target or dispatch_target,
+                "touchmove",
+                touches=touches,
+                changed_touches=[changed_touch],
+            )
+            if sleep_seconds > 0:
+                time.sleep(sleep_seconds)
+        return self._gesture_state(
+            current_page_path=page_path,
+            event_type="touch_move",
+            pointer_id=pointer_id,
+            resolved_target=resolved_target,
+            active_pointers=next_active_pointers,
+        )
+
+    def _real_touch_end(
+        self,
+        session_metadata: dict[str, Any],
+        current_page_path: str | None,
+        pointer_id: int,
+        active_pointers: dict[int, ActivePointer],
+    ) -> dict[str, Any]:
+        _page, page_path = self._get_real_page_and_path(session_metadata, current_page_path)
+        next_active_pointers = self._clone_active_pointers(active_pointers)
+        pointer = next_active_pointers[pointer_id]
+        changed_touch = self._position_to_touch(pointer.current_position, pointer_id)
+        remaining = {
+            candidate_id: candidate
+            for candidate_id, candidate in next_active_pointers.items()
+            if candidate_id != pointer_id
+        }
+        touches = self._build_touches_payload(remaining)
+        self._dispatch_real_touch_event(
+            pointer.runtime_target,
+            "touchend",
+            touches=touches,
+            changed_touches=[changed_touch],
+        )
+        next_active_pointers.pop(pointer_id, None)
+        return self._gesture_state(
+            current_page_path=page_path,
+            event_type="touch_end",
+            pointer_id=pointer_id,
+            resolved_target={
+                "type": "release",
+                "position": pointer.current_position.to_dict(),
+            },
+            active_pointers=next_active_pointers,
+        )
+
+    def _real_touch_tap(
+        self,
+        session_metadata: dict[str, Any],
+        current_page_path: str | None,
+        pointer_id: int,
+        target: GestureTarget,
+        active_pointers: dict[int, ActivePointer],
+    ) -> dict[str, Any]:
+        page, page_path = self._get_real_page_and_path(session_metadata, current_page_path)
+        next_active_pointers = self._clone_active_pointers(active_pointers)
+        dispatch_target, resolved_target, position = self._resolve_real_gesture_target(
+            page=page,
+            target=target,
+            active_pointers=next_active_pointers,
+            pointer_id=pointer_id,
+        )
+        changed_touch = self._position_to_touch(position, pointer_id)
+        touches = self._build_touches_payload(next_active_pointers, changed_touch=changed_touch)
+        self._dispatch_real_touch_event(
+            dispatch_target,
+            "touchstart",
+            touches=touches,
+            changed_touches=[changed_touch],
+        )
+        self._dispatch_real_touch_event(
+            dispatch_target,
+            "touchend",
+            touches=self._build_touches_payload(next_active_pointers),
+            changed_touches=[changed_touch],
+        )
+        self._dispatch_real_tap_event(dispatch_target)
+        return self._gesture_state(
+            current_page_path=page_path,
+            event_type="touch_tap",
+            pointer_id=pointer_id,
+            resolved_target=resolved_target,
+            active_pointers=next_active_pointers,
+        )
+
+    def _placeholder_touch_start(
+        self,
+        current_page_path: str | None,
+        pointer_id: int,
+        target: GestureTarget,
+        active_pointers: dict[int, ActivePointer],
+    ) -> dict[str, Any]:
+        page_path = current_page_path or "pages/index/index"
+        next_active_pointers = self._clone_active_pointers(active_pointers)
+        resolved_target, position = self._resolve_placeholder_gesture_target(page_path, target, next_active_pointers, pointer_id)
+        next_active_pointers[pointer_id] = ActivePointer(
+            pointer_id=pointer_id,
+            current_position=position,
+            origin_target_summary=resolved_target,
+        )
+        return self._gesture_state(
+            current_page_path=page_path,
+            event_type="touch_start",
+            pointer_id=pointer_id,
+            resolved_target=resolved_target,
+            active_pointers=next_active_pointers,
+        )
+
+    def _placeholder_touch_move(
+        self,
+        current_page_path: str | None,
+        pointer_id: int,
+        target: GestureTarget,
+        active_pointers: dict[int, ActivePointer],
+        duration_ms: int,
+        steps: int,
+    ) -> dict[str, Any]:
+        _ = duration_ms
+        _ = steps
+        page_path = current_page_path or "pages/index/index"
+        next_active_pointers = self._clone_active_pointers(active_pointers)
+        resolved_target, position = self._resolve_placeholder_gesture_target(page_path, target, next_active_pointers, pointer_id)
+        next_active_pointers[pointer_id].current_position = position
+        return self._gesture_state(
+            current_page_path=page_path,
+            event_type="touch_move",
+            pointer_id=pointer_id,
+            resolved_target=resolved_target,
+            active_pointers=next_active_pointers,
+        )
+
+    def _placeholder_touch_end(
+        self,
+        current_page_path: str | None,
+        pointer_id: int,
+        active_pointers: dict[int, ActivePointer],
+    ) -> dict[str, Any]:
+        page_path = current_page_path or "pages/index/index"
+        next_active_pointers = self._clone_active_pointers(active_pointers)
+        pointer = next_active_pointers.pop(pointer_id)
+        return self._gesture_state(
+            current_page_path=page_path,
+            event_type="touch_end",
+            pointer_id=pointer_id,
+            resolved_target={
+                "type": "release",
+                "position": pointer.current_position.to_dict(),
+            },
+            active_pointers=next_active_pointers,
+        )
+
+    def _placeholder_touch_tap(
+        self,
+        current_page_path: str | None,
+        pointer_id: int,
+        target: GestureTarget,
+        active_pointers: dict[int, ActivePointer],
+    ) -> dict[str, Any]:
+        page_path = current_page_path or "pages/index/index"
+        next_active_pointers = self._clone_active_pointers(active_pointers)
+        resolved_target, _position = self._resolve_placeholder_gesture_target(page_path, target, next_active_pointers, pointer_id)
+        return self._gesture_state(
+            current_page_path=page_path,
+            event_type="touch_tap",
+            pointer_id=pointer_id,
+            resolved_target=resolved_target,
+            active_pointers=next_active_pointers,
+        )
+
+    @staticmethod
+    def _clone_active_pointers(active_pointers: dict[int, ActivePointer]) -> dict[int, ActivePointer]:
+        return {
+            pointer_id: ActivePointer(
+                pointer_id=pointer.pointer_id,
+                status=pointer.status,
+                current_position=PointerPosition(
+                    x=pointer.current_position.x,
+                    y=pointer.current_position.y,
+                ),
+                origin_target_summary=dict(pointer.origin_target_summary),
+                started_at=pointer.started_at,
+                runtime_target=pointer.runtime_target,
+            )
+            for pointer_id, pointer in active_pointers.items()
+        }
+
+    def _get_real_page_and_path(
+        self,
+        session_metadata: dict[str, Any],
+        current_page_path: str | None,
+    ) -> tuple[Any, str]:
+        driver = session_metadata["runtime_driver"]
+        page = driver.app.get_current_page()
+        return page, self._normalize_page_path(getattr(page, "path", current_page_path))
+
+    def _resolve_real_gesture_target(
+        self,
+        page: Any,
+        target: GestureTarget,
+        active_pointers: dict[int, ActivePointer],
+        pointer_id: int,
+    ) -> tuple[Any, dict[str, Any], PointerPosition]:
+        if target.locator is not None:
+            elements = self._query_real_elements(page, target.locator)
+            element = self._require_match(elements, target.locator)
+            dispatch_target = self._resolve_real_gesture_dispatch_target(page, element, target.locator)
+            position = self._real_element_center(element)
+            return (
+                dispatch_target,
+                {
+                    "type": "locator",
+                    "locator": target.locator.model_dump(),
+                    "position": position.to_dict(),
+                    "tag": getattr(element, "_tag_name", None),
+                    "id": getattr(element, "id", None),
+                    "dispatch_tag": getattr(dispatch_target, "_tag_name", None),
+                    "dispatch_id": getattr(dispatch_target, "id", None),
+                },
+                position,
+            )
+        position = PointerPosition(x=float(target.x), y=float(target.y))
+        dispatch_target = self._resolve_runtime_dispatch_target(page, active_pointers, pointer_id)
+        return (
+            dispatch_target,
+            {
+                "type": "coordinates",
+                "position": position.to_dict(),
+            },
+            position,
+        )
+
+    def _resolve_placeholder_gesture_target(
+        self,
+        page_path: str,
+        target: GestureTarget,
+        active_pointers: dict[int, ActivePointer],
+        pointer_id: int,
+    ) -> tuple[dict[str, Any], PointerPosition]:
+        if target.locator is not None:
+            query_state = self.query_elements({}, page_path, target.locator)
+            match = self._require_match(query_state["matches"], target.locator)
+            position = PointerPosition(
+                x=float(match.get("center_x", 0)),
+                y=float(match.get("center_y", 0)),
+            )
+            return (
+                {
+                    "type": "locator",
+                    "locator": target.locator.model_dump(),
+                    "position": position.to_dict(),
+                    "id": match.get("id"),
+                },
+                position,
+            )
+        if pointer_id in active_pointers:
+            active_pointers[pointer_id].current_position = PointerPosition(x=float(target.x), y=float(target.y))
+        position = PointerPosition(x=float(target.x), y=float(target.y))
+        return (
+            {
+                "type": "coordinates",
+                "position": position.to_dict(),
+            },
+            position,
+        )
+
+    @staticmethod
+    def _resolve_runtime_dispatch_target(
+        page: Any,
+        active_pointers: dict[int, ActivePointer],
+        pointer_id: int,
+    ) -> Any:
+        if pointer_id in active_pointers and active_pointers[pointer_id].runtime_target is not None:
+            return active_pointers[pointer_id].runtime_target
+        for _, pointer in sorted(active_pointers.items(), key=lambda item: item[0]):
+            if pointer.runtime_target is not None:
+                return pointer.runtime_target
+        return page
+
+    def _resolve_real_gesture_dispatch_target(
+        self,
+        page: Any,
+        element: Any,
+        locator: Locator,
+    ) -> Any:
+        if locator.type != "text":
+            return element
+
+        candidates = self._collect_real_click_candidates(page, element, locator)
+        base_identity = self._real_element_identity(element)
+        base_id = getattr(element, "id", None)
+        base_element_id = getattr(element, "element_id", None)
+        base_rect = getattr(element, "rect", None) or {}
+        base_area = max(float(base_rect.get("width", 0)) * float(base_rect.get("height", 0)), 0.0)
+
+        better_candidates: list[tuple[float, Any]] = []
+        for candidate in candidates:
+            candidate_identity = self._real_element_identity(candidate)
+            if candidate_identity == base_identity:
+                continue
+            if getattr(candidate, "id", None) == base_id:
+                continue
+            if getattr(candidate, "element_id", None) == base_element_id:
+                continue
+            rect = getattr(candidate, "rect", None) or {}
+            area = max(float(rect.get("width", 0)) * float(rect.get("height", 0)), 0.0)
+            if area <= 0 or area > max(base_area * 4, 20_000):
+                continue
+            better_candidates.append((area, candidate))
+
+        if not better_candidates:
+            return element
+        better_candidates.sort(key=lambda item: item[0])
+        return better_candidates[0][1]
+
+    def _dispatch_real_touch_event(
+        self,
+        target: Any,
+        event_type: str,
+        touches: list[dict[str, float | int]],
+        changed_touches: list[dict[str, float | int]],
+    ) -> None:
+        if callable(getattr(target, "dispatch_event", None)):
+            target.dispatch_event(
+                event_type,
+                touches=touches,
+                change_touches=changed_touches,
+                detail={},
+            )
+            return
+        if event_type == "touchstart" and callable(getattr(target, "touch_start", None)):
+            target.touch_start(touches, changed_touches)
+            return
+        if event_type == "touchmove" and callable(getattr(target, "touch_move", None)):
+            target.touch_move(touches, changed_touches)
+            return
+        if event_type == "touchend" and callable(getattr(target, "touch_end", None)):
+            target.touch_end(changed_touches)
+            return
+        if callable(getattr(target, "trigger_events", None)):
+            target.trigger_events(
+                [
+                    {
+                        "type": event_type,
+                        "touches": touches,
+                        "changedTouches": changed_touches,
+                        "interval": 0,
+                    }
+                ]
+            )
+            return
+        raise AcceptanceError(
+            error_code=ErrorCode.ACTION_ERROR,
+            message="gesture target cannot dispatch touch event",
+            message_key="error.element_not_interactable",
+            details={"event_type": event_type},
+        )
+
+    def _dispatch_real_tap_event(self, target: Any) -> None:
+        if callable(getattr(target, "trigger", None)):
+            target.trigger("tap", {})
+            return
+        if callable(getattr(target, "dispatch_event", None)):
+            target.dispatch_event("tap", detail={})
+            return
+        if callable(getattr(target, "trigger_events", None)):
+            target.trigger_events([{"type": "tap", "detail": {}, "interval": 0}])
+            return
+
+    @staticmethod
+    def _build_touches_payload(
+        active_pointers: dict[int, ActivePointer],
+        changed_touch: dict[str, float | int] | None = None,
+    ) -> list[dict[str, float | int]]:
+        touches = [
+            MiniumRuntimeAdapter._position_to_touch(pointer.current_position, pointer.pointer_id)
+            for _, pointer in sorted(active_pointers.items(), key=lambda item: item[0])
+        ]
+        if changed_touch is not None and all(touch["identifier"] != changed_touch["identifier"] for touch in touches):
+            touches.append(changed_touch)
+        return touches
+
+    @staticmethod
+    def _position_to_touch(
+        position: PointerPosition,
+        pointer_id: int,
+    ) -> dict[str, float | int]:
+        return {
+            "identifier": pointer_id,
+            "pageX": position.x,
+            "pageY": position.y,
+            "clientX": position.x,
+            "clientY": position.y,
+        }
+
+    @staticmethod
+    def _interpolate_positions(
+        start: PointerPosition,
+        destination: PointerPosition,
+        steps: int,
+    ) -> list[PointerPosition]:
+        if steps <= 1:
+            return [destination]
+        positions: list[PointerPosition] = []
+        for index in range(1, steps + 1):
+            ratio = index / steps
+            positions.append(
+                PointerPosition(
+                    x=start.x + ((destination.x - start.x) * ratio),
+                    y=start.y + ((destination.y - start.y) * ratio),
+                )
+            )
+        return positions
+
+    @staticmethod
+    def _gesture_state(
+        current_page_path: str,
+        event_type: str,
+        pointer_id: int,
+        resolved_target: dict[str, Any],
+        active_pointers: dict[int, ActivePointer],
+    ) -> dict[str, Any]:
+        active_pointer_summaries = [
+            pointer.to_summary()
+            for _, pointer in sorted(active_pointers.items(), key=lambda item: item[0])
+        ]
+        return {
+            "current_page_path": current_page_path,
+            "event_type": event_type,
+            "pointer_id": pointer_id,
+            "resolved_target": resolved_target,
+            "active_pointers": active_pointers,
+            "active_pointer_summaries": active_pointer_summaries,
+            "latest_gesture_event": {
+                "event_type": event_type,
+                "pointer_id": pointer_id,
+                "resolved_target": resolved_target,
+                "active_pointers": active_pointer_summaries,
+            },
+        }
+
+    @staticmethod
+    def _real_element_center(element: Any) -> PointerPosition:
+        rect = getattr(element, "rect", None)
+        if not rect:
+            raise AcceptanceError(
+                error_code=ErrorCode.ACTION_ERROR,
+                message="gesture target has no rect",
+                message_key="error.element_not_interactable",
+                details={"cause": "missing element rect"},
+            )
+        return PointerPosition(
+            x=float(rect["left"] + (rect["width"] / 2)),
+            y=float(rect["top"] + (rect["height"] / 2)),
         )
 
     @staticmethod
@@ -835,6 +1515,8 @@ class MiniumRuntimeAdapter:
                 "visible": True,
                 "enabled": False,
                 "editable": False,
+                "center_x": 160,
+                "center_y": 40,
                 "page_path": page_path,
             },
             {
@@ -844,6 +1526,8 @@ class MiniumRuntimeAdapter:
                 "visible": True,
                 "enabled": True,
                 "editable": False,
+                "center_x": 140,
+                "center_y": 120,
                 "page_path": page_path,
             },
             {
@@ -853,6 +1537,8 @@ class MiniumRuntimeAdapter:
                 "visible": True,
                 "enabled": True,
                 "editable": True,
+                "center_x": 180,
+                "center_y": 220,
                 "page_path": page_path,
             },
             {
@@ -862,6 +1548,8 @@ class MiniumRuntimeAdapter:
                 "visible": False,
                 "enabled": False,
                 "editable": False,
+                "center_x": 160,
+                "center_y": 320,
                 "page_path": page_path,
             },
         ]

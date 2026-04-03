@@ -8,10 +8,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from minium_mcp.domain.action_models import Locator, WaitCondition
+from minium_mcp.domain.action_models import GestureTarget, Locator, WaitCondition
 from minium_mcp.domain.action_service import ActionService
 from minium_mcp.domain.errors import AcceptanceError
-from minium_mcp.domain.session_models import utcnow
+from minium_mcp.domain.session_models import ActivePointer, PointerPosition, utcnow
 from minium_mcp.domain.session_service import SessionService
 from minium_mcp.domain.session_repository import SessionRepository
 from minium_mcp.adapters.minium.runtime import MiniumRuntimeAdapter
@@ -665,3 +665,185 @@ def test_assert_page_path_reads_runtime_state_before_asserting() -> None:
         assert result["ok"] is True
         assert result["actual_value"] == "pages/home/index"
         assert repository.get(session.session_id).current_page_path == "pages/home/index"
+
+
+def test_action_service_touch_flow_updates_active_pointers_in_placeholder_runtime() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        project_path = temp_path / "miniapp"
+        devtool_path = temp_path / "wechat-devtool"
+        artifacts_dir = temp_path / "artifacts"
+        project_path.mkdir()
+        devtool_path.write_text("placeholder", encoding="utf-8")
+
+        config = MiniumMcpConfig(
+            language="en",
+            runtime_mode="placeholder",
+            project_path=project_path,
+            wechat_devtool_path=devtool_path,
+            artifacts_dir=artifacts_dir,
+            log_level="INFO",
+            session_timeout_seconds=60,
+            test_port=9420,
+        )
+        repository = SessionRepository(timeout_seconds=60)
+        runtime = MiniumRuntimeAdapter(config=config)
+        session_service = SessionService(
+            repository=repository,
+            runtime_adapter=runtime,
+            artifact_manager=ArtifactManager(config.artifacts_dir),
+            language="en",
+        )
+        action_service = ActionService(
+            repository=repository,
+            runtime_adapter=runtime,
+            artifact_manager=ArtifactManager(config.artifacts_dir),
+            language="en",
+        )
+
+        created = session_service.create_session(mode="launch")
+        session_id = created["session_id"]
+
+        started = action_service.touch_start(
+            session_id,
+            1,
+            GestureTarget(locator=Locator(type="id", value="login-button")),
+        )
+        moved = action_service.touch_move(
+            session_id,
+            1,
+            GestureTarget(x=200, y=260),
+            duration_ms=120,
+            steps=3,
+        )
+        tapped = action_service.touch_tap(
+            session_id,
+            2,
+            GestureTarget(locator=Locator(type="id", value="search-input")),
+        )
+        ended = action_service.touch_end(session_id, 1)
+
+        assert started["ok"] is True
+        assert [pointer["pointer_id"] for pointer in started["active_pointers"]] == [1]
+        assert moved["active_pointers"][0]["current_position"] == {"x": 200.0, "y": 260.0}
+        assert [pointer["pointer_id"] for pointer in tapped["active_pointers"]] == [1]
+        assert ended["active_pointers"] == []
+        assert repository.get(session_id).latest_gesture_event["event_type"] == "touch_end"
+
+
+def test_runtime_touch_tap_keeps_existing_pointer_in_touches_payload() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        config = MiniumMcpConfig(
+            language="zh-CN",
+            runtime_mode="real",
+            project_path=None,
+            wechat_devtool_path=temp_path / "wechat-devtool",
+            artifacts_dir=temp_path / "artifacts",
+            log_level="INFO",
+            session_timeout_seconds=60,
+            test_port=9420,
+        )
+        runtime = MiniumRuntimeAdapter(config=config)
+
+        class _FakeElement:
+            def __init__(self, name: str, left: int, top: int) -> None:
+                self.name = name
+                self.id = name
+                self.element_id = name
+                self._tag_name = "view"
+                self.rect = {"left": left, "top": top, "width": 20, "height": 20}
+                self.events: list[tuple[str, dict]] = []
+
+            def dispatch_event(self, event_name: str, **kwargs) -> None:
+                self.events.append((event_name, kwargs))
+
+            def trigger(self, event_name: str, detail: dict) -> None:
+                self.events.append((event_name, {"detail": detail}))
+
+        class _FakePage:
+            path = "/pages/home/index"
+
+        class _FakeApp:
+            def get_current_page(self) -> _FakePage:
+                return _FakePage()
+
+        pointer_one_target = _FakeElement("pointer-one", 10, 20)
+        pointer_two_target = _FakeElement("pointer-two", 80, 100)
+        driver = SimpleNamespace(app=_FakeApp())
+        active_pointers = {
+            1: ActivePointer(
+                pointer_id=1,
+                current_position=PointerPosition(x=20, y=30),
+                origin_target_summary={"type": "locator", "id": "pointer-one"},
+                runtime_target=pointer_one_target,
+            )
+        }
+
+        with patch.object(
+            MiniumRuntimeAdapter,
+            "_query_real_elements",
+            return_value=[pointer_two_target],
+        ):
+            state = runtime.touch_tap(
+                session_metadata={"runtime_driver": driver},
+                current_page_path="pages/home/index",
+                pointer_id=2,
+                target=GestureTarget(locator=Locator(type="id", value="pointer-two")),
+                active_pointers=active_pointers,
+            )
+
+        assert state["active_pointer_summaries"][0]["pointer_id"] == 1
+        touchstart_kwargs = pointer_two_target.events[0][1]
+        touchend_kwargs = pointer_two_target.events[1][1]
+        assert {touch["identifier"] for touch in touchstart_kwargs["touches"]} == {1, 2}
+        assert {touch["identifier"] for touch in touchend_kwargs["touches"]} == {1}
+        assert pointer_two_target.events[2][0] == "tap"
+
+
+def test_action_service_touch_end_failure_attaches_artifact() -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        project_path = temp_path / "miniapp"
+        devtool_path = temp_path / "wechat-devtool"
+        artifacts_dir = temp_path / "artifacts"
+        project_path.mkdir()
+        devtool_path.write_text("placeholder", encoding="utf-8")
+
+        config = MiniumMcpConfig(
+            language="en",
+            runtime_mode="placeholder",
+            project_path=project_path,
+            wechat_devtool_path=devtool_path,
+            artifacts_dir=artifacts_dir,
+            log_level="INFO",
+            session_timeout_seconds=60,
+            test_port=9420,
+        )
+        repository = SessionRepository(timeout_seconds=60)
+        runtime = MiniumRuntimeAdapter(config=config)
+        session_service = SessionService(
+            repository=repository,
+            runtime_adapter=runtime,
+            artifact_manager=ArtifactManager(config.artifacts_dir),
+            language="en",
+        )
+        action_service = ActionService(
+            repository=repository,
+            runtime_adapter=runtime,
+            artifact_manager=ArtifactManager(config.artifacts_dir),
+            language="en",
+        )
+
+        created = session_service.create_session(mode="launch")
+        session_id = created["session_id"]
+
+        try:
+            action_service.touch_end(session_id, 1)
+        except AcceptanceError as error:
+            assert error.error_code.value == "ACTION_ERROR"
+            assert error.details["pointer_id"] == 1
+            assert error.artifacts
+            assert Path(error.artifacts[0]).exists()
+        else:
+            raise AssertionError("Expected inactive pointer release to fail")

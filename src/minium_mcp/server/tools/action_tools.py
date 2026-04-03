@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from mcp.server.fastmcp import FastMCP
 
-from minium_mcp.domain.action_models import Locator, WaitCondition
+from minium_mcp.domain.action_models import GestureTarget, Locator, WaitCondition
 from minium_mcp.domain.action_service import ActionService
 from minium_mcp.domain.errors import AcceptanceError
 from minium_mcp.domain.service_context import ServiceContext
@@ -57,6 +57,58 @@ def register_action_tools(server: FastMCP, context: ServiceContext) -> None:
     def wait_for(session_id: str, condition: WaitCondition) -> dict:
         try:
             return service.wait_for(session_id, condition)
+        except AcceptanceError as error:
+            return error.to_response(language=context.language)
+
+    @server.tool(
+        name="miniapp_touch_start",
+        description=translate("tool.touch_start.description", context.language),
+    )
+    def touch_start(session_id: str, pointer_id: int, target: GestureTarget) -> dict:
+        try:
+            return service.touch_start(session_id, pointer_id, target)
+        except AcceptanceError as error:
+            return error.to_response(language=context.language)
+
+    @server.tool(
+        name="miniapp_touch_move",
+        description=translate("tool.touch_move.description", context.language),
+    )
+    def touch_move(
+        session_id: str,
+        pointer_id: int,
+        target: GestureTarget,
+        duration_ms: int = 0,
+        steps: int = 1,
+    ) -> dict:
+        try:
+            return service.touch_move(
+                session_id=session_id,
+                pointer_id=pointer_id,
+                target=target,
+                duration_ms=duration_ms,
+                steps=steps,
+            )
+        except AcceptanceError as error:
+            return error.to_response(language=context.language)
+
+    @server.tool(
+        name="miniapp_touch_end",
+        description=translate("tool.touch_end.description", context.language),
+    )
+    def touch_end(session_id: str, pointer_id: int) -> dict:
+        try:
+            return service.touch_end(session_id, pointer_id)
+        except AcceptanceError as error:
+            return error.to_response(language=context.language)
+
+    @server.tool(
+        name="miniapp_touch_tap",
+        description=translate("tool.touch_tap.description", context.language),
+    )
+    def touch_tap(session_id: str, pointer_id: int, target: GestureTarget) -> dict:
+        try:
+            return service.touch_tap(session_id, pointer_id, target)
         except AcceptanceError as error:
             return error.to_response(language=context.language)
 

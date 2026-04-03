@@ -87,6 +87,7 @@ class SessionService:
                 "runtime_backend": runtime_state["backend"],
                 "runtime_note": runtime_state.get("note"),
                 "test_port": runtime_state.get("test_port"),
+                "active_pointers": session.active_pointer_summaries(),
             },
         )
 
@@ -122,6 +123,8 @@ class SessionService:
                 "page_summary": page_state["page_summary"],
                 "runtime_backend": session.metadata.get("runtime_backend"),
                 "runtime_note": session.metadata.get("runtime_note"),
+                "active_pointers": session.active_pointer_summaries(),
+                "latest_gesture_event": session.latest_gesture_event,
             },
         )
 
@@ -151,6 +154,8 @@ class SessionService:
                 "artifact_paths": [str(target_path)],
                 "runtime_backend": session.metadata.get("runtime_backend"),
                 "runtime_note": session.metadata.get("runtime_note"),
+                "active_pointers": session.active_pointer_summaries(),
+                "latest_gesture_event": session.latest_gesture_event,
             },
         )
 

@@ -40,3 +40,22 @@ class WaitCondition(BaseModel):
         if self.kind in {"element_exists", "element_visible"} and self.locator is None:
             raise ValueError(f"{self.kind} requires locator")
         return self
+
+
+class GestureTarget(BaseModel):
+    """手势目标，支持定位器或绝对坐标。"""
+
+    locator: Locator | None = None
+    x: float | None = None
+    y: float | None = None
+
+    @model_validator(mode="after")
+    def validate_target(self) -> "GestureTarget":
+        has_locator = self.locator is not None
+        has_coordinates = self.x is not None or self.y is not None
+
+        if has_locator and has_coordinates:
+            raise ValueError("gesture target must use either locator or coordinates")
+        if not has_locator and (self.x is None or self.y is None):
+            raise ValueError("gesture target requires locator or both x and y")
+        return self

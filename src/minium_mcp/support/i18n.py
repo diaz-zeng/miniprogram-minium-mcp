@@ -120,6 +120,22 @@ MESSAGE_CATALOG: dict[str, dict[str, str]] = {
         "zh-CN": "等待页面路径或元素条件成立。",
         "en": "Wait for a page-path or element condition to be satisfied.",
     },
+    "tool.touch_start.description": {
+        "zh-CN": "在目标位置按下并保持一个触点。",
+        "en": "Press and hold a pointer on the target.",
+    },
+    "tool.touch_move.description": {
+        "zh-CN": "移动一个已按下的触点到目标位置。",
+        "en": "Move an active pointer to the target position.",
+    },
+    "tool.touch_end.description": {
+        "zh-CN": "释放一个已按下的触点。",
+        "en": "Release an active pointer.",
+    },
+    "tool.touch_tap.description": {
+        "zh-CN": "使用指定触点执行一次短按点击。",
+        "en": "Perform a short tap with the specified pointer.",
+    },
     "tool.assert_page_path.description": {
         "zh-CN": "断言当前页面路径与期望值一致。",
         "en": "Assert that the current page path matches the expected value.",
@@ -155,6 +171,22 @@ MESSAGE_CATALOG: dict[str, dict[str, str]] = {
     "action.wait.success": {
         "zh-CN": "等待条件已满足。",
         "en": "The wait condition has been satisfied.",
+    },
+    "action.touch_start.success": {
+        "zh-CN": "触点按下成功。",
+        "en": "Pointer press started successfully.",
+    },
+    "action.touch_move.success": {
+        "zh-CN": "触点移动成功。",
+        "en": "Pointer move completed successfully.",
+    },
+    "action.touch_end.success": {
+        "zh-CN": "触点释放成功。",
+        "en": "Pointer release completed successfully.",
+    },
+    "action.touch_tap.success": {
+        "zh-CN": "触点点击成功。",
+        "en": "Pointer tap completed successfully.",
     },
     "assert.page_path.success": {
         "zh-CN": "页面路径断言成功。",
@@ -195,6 +227,18 @@ MESSAGE_CATALOG: dict[str, dict[str, str]] = {
     "error.wait_timeout": {
         "zh-CN": "等待条件超时。",
         "en": "Waiting for the condition timed out.",
+    },
+    "error.pointer_already_active": {
+        "zh-CN": "该触点当前已经处于按下状态。",
+        "en": "The pointer is already active.",
+    },
+    "error.pointer_not_active": {
+        "zh-CN": "该触点当前未处于按下状态。",
+        "en": "The pointer is not active.",
+    },
+    "error.pointer_limit_exceeded": {
+        "zh-CN": "当前版本最多只支持两个活跃触点。",
+        "en": "The current version supports at most two active pointers.",
     },
     "error.minium_launch_failed": {
         "zh-CN": "接入 Minium 运行时失败。",
