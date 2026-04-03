@@ -1,6 +1,7 @@
 .codex/
 .git/
 .gitignore
+AGENTS.md
 .pytest_cache/
 .venv/
 artifacts/
